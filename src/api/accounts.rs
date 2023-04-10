@@ -1,7 +1,7 @@
 //! Partial implementation of the `Accounts` namespace.
 
+use crate::ic::{ic_raw_sign, recover_address, KeyInfo};
 use crate::{api::Namespace, signing, types::H256, Transport};
-use crate::ic::{KeyInfo, ic_raw_sign, recover_address};
 
 /// `Accounts` namespace
 #[derive(Debug, Clone)]
@@ -128,7 +128,6 @@ mod accounts_signing {
             key_info: KeyInfo,
             chain_id: u64,
         ) -> error::Result<SignedTransaction> {
-
             let gas_price = match tx.transaction_type {
                 Some(tx_type) if tx_type == U64::from(EIP1559_TX_ID) && tx.max_fee_per_gas.is_some() => {
                     tx.max_fee_per_gas.unwrap()
@@ -395,31 +394,37 @@ mod accounts_signing {
             let hash = signing::keccak256(encoded.as_ref());
 
             let res = match ic_raw_sign(hash.to_vec(), key_info).await {
-                Ok(v) => { v },
-                Err(e) => { panic!("{}", e); },
+                Ok(v) => v,
+                Err(e) => {
+                    panic!("{}", e);
+                }
             };
 
             let v = if recover_address(hash.clone().to_vec(), res.clone(), 0) == from {
                 if adjust_v_value {
                     2 * chain_id + 35 + 0
-                } else { 0 }
+                } else {
+                    0
+                }
             } else {
                 if adjust_v_value {
                     2 * chain_id + 35 + 1
-                } else { 1 }
+                } else {
+                    1
+                }
             };
-    
+
             let r_arr = H256::from_slice(&res[0..32]);
             let s_arr = H256::from_slice(&res[32..64]);
             let sig = Signature {
                 v: v.clone(),
                 r: r_arr.clone().into(),
-                s: s_arr.clone().into()
+                s: s_arr.clone().into(),
             };
-        
+
             let signed = self.encode(chain_id, Some(&sig));
             let transaction_hash = signing::keccak256(signed.as_ref()).into();
-        
+
             SignedTransaction {
                 message_hash: hash.into(),
                 v,

@@ -7,7 +7,6 @@ use crate::{
     Transport,
 };
 use futures::{stream, Stream, TryStreamExt};
-use futures_timer::Delay;
 use serde::de::DeserializeOwned;
 use std::{fmt, marker::PhantomData, time::Duration, vec};
 
@@ -18,7 +17,7 @@ fn filter_stream<T: Transport, I: DeserializeOwned>(
     let id = helpers::serialize(&base.id);
     stream::unfold((base, id), move |state| async move {
         let (base, id) = state;
-        Delay::new(poll_interval).await;
+        //Delay::new(poll_interval).await;
         let response = base.transport.execute("eth_getFilterChanges", vec![id.clone()]).await;
         let items: error::Result<Option<Vec<I>>> = response.and_then(helpers::decode);
         let items = items.map(Option::unwrap_or_default);
